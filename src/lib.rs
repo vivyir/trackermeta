@@ -1,13 +1,74 @@
 use chrono::prelude::{DateTime, Utc};
 
+#[cfg(feature = "overridable")]
+use platform_dirs::AppDirs;
+#[cfg(feature = "overridable")]
+use std::fs;
+#[cfg(feature = "overridable")]
+use std::io::{Read, Write};
+
 // https://stackoverflow.com/a/64148190
 fn iso8601_time(st: &std::time::SystemTime) -> String {
     let dt: DateTime<Utc> = st.clone().into();
     format!("{}", dt.format("%+"))
 }
 
+#[cfg(feature = "overridable")]
+fn load_lines(
+    mod_fl_line: usize,
+    mod_inf_line: usize,
+    mod_dl_line: usize,
+) -> (usize, usize, usize) {
+
+    let app_dirs = AppDirs::new(Some("trackermeta"), true).unwrap();
+    let config_file_path = app_dirs.config_dir.join("line-overrides");
+
+    if config_file_path.exists() {
+        let mut file = fs::File::open(config_file_path).unwrap();
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).unwrap();
+
+        let contents = contents.trim().split(',');
+
+        let loaded_mod_fl_line: usize = contents
+            .clone()
+            .next()
+            .unwrap()
+            .parse()
+            .expect("Invalid digit for mod_filename_line in config");
+
+        let loaded_mod_inf_line: usize = contents
+            .clone()
+            .nth(1)
+            .unwrap()
+            .parse()
+            .expect("Invalid digit for mod_info_line in config");
+
+        let loaded_mod_dl_line: usize = contents
+            .clone()
+            .nth(2)
+            .unwrap()
+            .parse()
+            .expect("Invalid digit for mod_download_line in config");
+
+        return (loaded_mod_fl_line, loaded_mod_inf_line, loaded_mod_dl_line);
+    } else {
+
+        fs::create_dir_all(&app_dirs.config_dir).unwrap();
+
+        let mut file = fs::File::create(config_file_path).unwrap();
+        file.write_all(format!("{},{},{}", mod_fl_line, mod_inf_line, mod_dl_line).as_bytes())
+            .unwrap();
+
+        return (mod_fl_line, mod_inf_line, mod_dl_line);
+    };
+}
+
 pub mod trackermeta {
     use crate::iso8601_time;
+
+    #[cfg(feature = "overridable")]
+    use crate::load_lines;
 
     #[derive(Debug)]
     pub enum Error {
@@ -42,6 +103,14 @@ pub mod trackermeta {
         // special info
         let mod_id = module_id;
 
+        #[cfg(feature = "overridable")]
+        {
+            let line_tuple = load_lines(mod_filename_line, mod_info_line, mod_download_line);
+            mod_filename_line = line_tuple.0;
+            mod_info_line = line_tuple.1;
+            mod_download_line = line_tuple.2;
+        }
+
         let body: String = ureq::get(
             format!(
                 "https://modarchive.org/index.php?request=view_by_moduleid&query={}",
@@ -55,18 +124,18 @@ pub mod trackermeta {
         .unwrap();
 
         let mod_status_text = body.split('\n').nth(184 - 1).unwrap();
-        if mod_status_text == "" {
+        if mod_status_text.is_empty() {
             mod_status = "absent";
         }
 
         if mod_status != "absent" {
             {
                 let mod_spotlit_text = body.split('\n').nth(170 - 1).unwrap();
-                if mod_spotlit_text != "" {
+                if !mod_spotlit_text.is_empty() {
                     mod_spotlit = true;
-                    mod_filename_line = mod_filename_line + 6;
-                    mod_download_line = mod_download_line + 6;
-                    mod_info_line = mod_info_line + 6;
+                    mod_filename_line += 6;
+                    mod_download_line += 6;
+                    mod_info_line += 6;
                     mod_fav_line = mod_download_line + 1;
                     mod_md5_line = mod_fav_line + 1;
                     mod_channel_line = mod_md5_line + 2;
@@ -79,11 +148,11 @@ pub mod trackermeta {
                 .split('\n')
                 .nth(mod_filename_line - 1)
                 .unwrap()
-                .split("#")
+                .split('#')
                 .nth(1)
                 .unwrap()
                 .split("\">")
-                .nth(0)
+                .next()
                 .unwrap();
 
             mod_download = body
@@ -94,7 +163,7 @@ pub mod trackermeta {
                 .nth(1)
                 .unwrap()
                 .split("</li>")
-                .nth(0)
+                .next()
                 .unwrap()
                 .parse()
                 .unwrap();
@@ -107,7 +176,7 @@ pub mod trackermeta {
                 .nth(1)
                 .unwrap()
                 .split(" times</li>")
-                .nth(0)
+                .next()
                 .unwrap()
                 .parse()
                 .unwrap();
@@ -120,7 +189,7 @@ pub mod trackermeta {
                 .nth(1)
                 .unwrap()
                 .split("</li>")
-                .nth(0)
+                .next()
                 .unwrap();
 
             mod_channel = body
@@ -131,7 +200,7 @@ pub mod trackermeta {
                 .nth(1)
                 .unwrap()
                 .split("</li>")
-                .nth(0)
+                .next()
                 .unwrap()
                 .parse()
                 .unwrap();
@@ -144,7 +213,7 @@ pub mod trackermeta {
                 .nth(1)
                 .unwrap()
                 .split("</li>")
-                .nth(0)
+                .next()
                 .unwrap();
 
             mod_genre = body
@@ -155,7 +224,7 @@ pub mod trackermeta {
                 .nth(1)
                 .unwrap()
                 .split("</li>")
-                .nth(0)
+                .next()
                 .unwrap();
 
             mod_upload_date = body
@@ -166,11 +235,10 @@ pub mod trackermeta {
                 .nth(1)
                 .unwrap()
                 .split(" :D")
-                .nth(0)
+                .next()
                 .unwrap();
 
             mod_format = mod_filename
-                .clone()
                 .split('.')
                 .nth(1)
                 .unwrap()
@@ -247,7 +315,7 @@ pub mod trackermeta {
         let mod_line;
         let stat_text = body.split('\n').nth(151 - 1).unwrap();
 
-        if stat_text == "" {
+        if stat_text.is_empty() {
             mod_line = stat_line + 18;
         } else if stat_text == "<h1>Module Search</h1>" {
             return Err(crate::trackermeta::Error::NotFound);
@@ -263,7 +331,7 @@ pub mod trackermeta {
             .nth(1)
             .unwrap()
             .split("\" title")
-            .nth(0)
+            .next()
             .unwrap()
             .parse()
             .unwrap();
