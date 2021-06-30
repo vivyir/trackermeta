@@ -1,0 +1,11 @@
+[package]
+name = "trackermeta"
+version = "0.1.0"
+authors = ["phnixir <67435287+phnixir@users.noreply.github.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ureq = "2.1"
+chrono = "0.4"
