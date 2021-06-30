@@ -5,3 +5,6 @@ utility searches modarchive for the filename provided, gets the most likely
 result, extracts module id and then gets the full details for it as a single
 csv record which the structure of it can be seen in the lib.rs file in the
 first function of the trackermeta module.
+
+The src/main.rs includes a full example on how to use the library which is
+only 13 lines!
