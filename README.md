@@ -9,7 +9,13 @@ first function of the trackermeta module.
 The src/main.rs includes a full example on how to use the library which is
 only 13 lines!
 
-## Overriding the default values
+## Features
+
+### Infinity retry
+This feature basically enables you to make the library retry infinitely
+regardless of errors until Modarchive gives in
+
+### Overriding the default values
 This library functions by using stable "anchor" points to start from and
 extract meta-data which are hardcoded in the source but since it's better
 to future proof in case of an event like a small design change in Modarchive
@@ -18,7 +24,10 @@ the whole program, and that is an extremely simple config file which is
 enabled by the "**overridable**" feature and is  located depending on the 
 platform, using the crate platform-dirs to determine the config file folder
 which your program should modify in order to change anchor values, on linux
-for example its located at `/home/user/.config/trackermeta/line-overrides`
+for example its located at:
+
+`/home/user/.config/trackermeta/line-overrides`
+
 in header-less csv and is read as "module\_filename\_line, module\_info\_line, 
 module\_download\_line (the download count)" if you're still unsure of what
 they are view the source page on an unnominated module of modarchive and

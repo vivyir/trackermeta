@@ -1,6 +1,6 @@
 [package]
 name = "trackermeta"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["phnixir <67435287+phnixir@users.noreply.github.com>"]
 edition = "2018"
 description = "Simple library/utility to get modarchive module data"
