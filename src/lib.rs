@@ -111,17 +111,47 @@ pub mod trackermeta {
             mod_download_line = line_tuple.2;
         }
 
-        let body: String = ureq::get(
-            format!(
-                "https://modarchive.org/index.php?request=view_by_moduleid&query={}",
-                mod_id
-            )
-            .as_str(),
-        )
-        .call()
-        .unwrap()
-        .into_string()
-        .unwrap();
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "infinity-retry")] {
+                fn inner_request(mod_id: u32) -> String{
+                    loop {
+                        match ureq::get(
+                            format!(
+                                "https://modarchive.org/index.php?request=view_by_moduleid&query={}",
+                                mod_id
+                            )
+                            .as_str(),
+                        )
+                        .timeout(std::time::Duration::from_secs(60))
+                        .call() {
+                            Ok(req) => {
+                                return req.into_string().unwrap()
+                            }
+                            Err(_) => continue,
+                        };
+                    }
+                }
+            } else {
+                fn inner_request(mod_id: u32) -> String {
+                    let body = ureq::get(
+                        format!(
+                            "https://modarchive.org/index.php?request=view_by_moduleid&query={}",
+                            mod_id
+                        )
+                        .as_str(),
+                    )
+                    .timeout(std::time::Duration::from_secs(60))
+                    .call()
+                    .unwrap()
+                    .into_string()
+                    .unwrap();
+
+                    body
+                }
+            }
+        }
+
+        let body: String = inner_request(mod_id);
 
         let mod_status_text = body.split('\n').nth(184 - 1).unwrap();
         if mod_status_text.is_empty() {

@@ -12,8 +12,10 @@ keywords = ["modarchive", "scraping", "tracker"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 overridable = []
+infinity-retry = []
 
 [dependencies]
 ureq = "2.1"
 chrono = "0.4"
 platform-dirs = "0.3"
+cfg-if = "1.0"
