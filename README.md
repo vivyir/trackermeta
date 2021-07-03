@@ -1,4 +1,7 @@
 # Trackermeta
+Warning! always add the library version down to the patch (e.g: 0.1.3) to
+avoid breakage
+
 This is a simple library and a small utility crate that helps with parsing
 data from the website called [Modarchive](https://modarchive.org), the
 utility searches modarchive for the filename provided, gets the most likely
