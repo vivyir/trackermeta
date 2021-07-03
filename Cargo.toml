@@ -16,6 +16,7 @@ infinity-retry = []
 
 [dependencies]
 ureq = "2.1"
+escaper = "0.1.1"
 chrono = "0.4"
 platform-dirs = "0.3"
 cfg-if = "1.0"

@@ -77,6 +77,7 @@ pub mod trackermeta {
 
     pub fn get_full_details(module_id: u32) -> String {
         // priv info
+        let mod_title_line = 140; // as long as the modarchive toolbar doesnt change this is stable
         let mut mod_filename_line = 178;
         let mut mod_info_line = 192;
         let mut mod_download_line = 198;
@@ -90,6 +91,7 @@ pub mod trackermeta {
         let mut mod_spotlit = false;
         let mut mod_format = "invalid".to_string();
         let mut mod_filename = "invalid";
+        let mut mod_title = String::from("invalid");
         let mut mod_status = "present";
         let mut mod_upload_date = "Thu 1st Jan 1970";
         let mut mod_download: u32 = 0;
@@ -183,6 +185,19 @@ pub mod trackermeta {
                 .unwrap()
                 .split("\">")
                 .next()
+                .unwrap();
+
+            mod_title = escaper::decode_html(body
+                    .split('\n')
+                    .nth(mod_title_line - 1)
+                    .unwrap()
+                    .split("<h1>")
+                    .nth(1)
+                    .unwrap()
+                    .split(" <span class")
+                    .nth(0)
+                    .unwrap()
+                )
                 .unwrap();
 
             mod_download = body
@@ -311,10 +326,11 @@ pub mod trackermeta {
 
         // csv style
         format!(
-            "{},{},{},{},{},{},{},{},{},{},{},{},{}",
+            "{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
             mod_id,
             mod_status,
             mod_filename,
+            mod_title,
             mod_size,
             mod_md5,
             mod_format,
@@ -389,7 +405,7 @@ mod tests {
     #[test]
     fn spotlit_modid() {
         let module = get_full_details(158263);
-        assert_eq!(module.split(',').nth(6).unwrap(), "true");
+        assert_eq!(module.split(',').nth(7).unwrap(), "true");
     }
 
     #[test]
