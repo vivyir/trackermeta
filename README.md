@@ -3,11 +3,17 @@ This is a simple library and a small utility crate that helps with parsing
 data from the website called [Modarchive](https://modarchive.org), the
 utility searches modarchive for the filename provided, gets the most likely
 result, extracts module id and then gets the full details for it as a single
-csv record which the structure of it can be seen in the lib.rs file in the
-first function of the trackermeta module.
+csv record which the structure of it can be seen in the docs of the function
+`scraper::requests::get_full_details_as_string`, alternatively and the way
+which i recommend is to use `scraper::requests::get_full_details_as_struct`,
+and use the `scraper::ModInfo` struct inside your code to make it more readable.
 
+## Examples
 The src/main.rs includes a full example on how to use the library which is
 only 17 lines of code!
+
+And there is 3 other examples both included in the docs and the `examples/`
+directory which are simpler.
 
 ## Features
 

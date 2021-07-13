@@ -1,3 +1,46 @@
+//! This is a simple library and a small utility crate that helps with parsing
+//! data from the website called [Modarchive], the
+//! utility searches modarchive for the filename provided, gets the most likely
+//! result, extracts module id and then gets the full details for it as a single
+//! csv record which the structure of it can be seen in the docs of the
+//! first function of the [`scraper::requests`] module or alternatively as a
+//! [`scraper::ModInfo`] struct using the function 
+//! [`scraper::requests::get_full_details_as_struct`].
+//! 
+//! ## Example: Get module info as a struct using a module id
+//! ```rust
+//! use trackermeta::scraper::requests;
+//!
+//! fn main() {
+//!     let modinfo = requests::get_full_details_as_struct(51772);
+//!     println!("{:#?}", modinfo);
+//! }
+//! ```
+//!
+//! ## Example: Resolve filename to id then use id to get the info as struct
+//! ```rust
+//! use trackermeta::scraper::{requests, resolver};
+//!
+//! fn main() {
+//!     let modid = resolver::resolve_mod_filename("noway.s3m").unwrap();
+//!     let modinfo = requests::get_full_details_as_struct(modid);
+//!     println!("{:#?}", modinfo);
+//! }
+//! ```
+//!
+//! ## Example: Resolve filename to id then use id to get the info as string
+//! ```rust
+//! use trackermeta::scraper::{requests, resolver};
+//!
+//! fn main() {
+//!     let modid = resolver::resolve_mod_filename("noway.s3m").unwrap();
+//!     let modinfo = requests::get_full_details_as_string(modid);
+//!     println!("{}", modinfo);
+//! }
+//! ```
+//!
+//! [Modarchive]: https://modarchive.org
+
 use chrono::prelude::{DateTime, Utc};
 
 #[cfg(feature = "overridable")]
@@ -62,37 +105,85 @@ fn load_lines(
     };
 }
 
+/// The main module containing everything in the crate
 pub mod scraper {
     #[cfg(feature = "overridable")]
     use crate::load_lines;
 
+    /// Error enum for functions in the crate that return a [`Result`]
     #[derive(Debug)]
     pub enum Error {
         NotFound,
     }
 
+    /// Struct containing all of the info about a module
     #[derive(Debug)]
     pub struct ModInfo {
+        /// The module ID of the module on modarchive
         pub info_mod_id: u32,
+        /// Can be either `absent` or `present`
         pub info_mod_status: String,
+        /// The filename of the module
         pub info_mod_filename: String,
+        /// The title of the module
         pub info_mod_title: String,
+        /// The file size of the module, use the
+        /// crate `byte-unit` to convert them to other units
         pub info_mod_size: String,
+        /// The MD5 hash of the module file as a string
         pub info_mod_md5: String,
+        /// The format of the module, for example `XM`, `IT`
+        /// or `MOD` and more, basically the extension of the
+        /// module file
         pub info_mod_format: String,
+        /// Spotlit module or not
         pub info_mod_spotlit: bool,
+        /// Download count of the module at the time of scraping
         pub info_mod_download: u32,
+        /// Times the module has been favourited at the time of
+        /// scraping
         pub info_mod_fav: u32,
+        /// The time when it was scraped
         pub info_mod_scrape_time: String,
+        /// The channel count of the module
         pub info_mod_channel: u32,
+        /// The genre of the module
         pub info_mod_genre: String,
+        /// The upload date of the module
         pub info_mod_upload_date: String,
     }
 
+    /// Module containing scraper requests you can make to modarchive
     pub mod requests {
         use crate::iso8601_time;
         use crate::scraper::ModInfo;
 
+        /// Get every detail about a module and return a [`String`]
+        ///
+        /// The string returned is formatted using the [`format!()`] macro
+        /// like so:
+        /// ```rust
+        /// format!(
+        ///    "{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+        ///     mod_id,
+        ///     mod_status,
+        ///     mod_filename,
+        ///     mod_title,
+        ///     mod_size,
+        ///     mod_md5,
+        ///     mod_format,
+        ///     mod_spotlit,
+        ///     mod_download,
+        ///     mod_fav,
+        ///     mod_scrape_time,
+        ///     mod_channel,
+        ///     mod_genre,
+        ///     mod_upload_date
+        /// )
+        /// ```
+        /// And an example string returned would be:
+        ///
+        /// `51772,present,noway.s3m,No Way To Know,140.78KB,ebbf37d7c868f3c3c551702711fe8512,S3M,false,1938,0,2021-07-13T09:07:50.641382301+00:00,10,Trance - Dream,Fri 27th Nov 1998`
         pub fn get_full_details_as_string(module_id: u32) -> String {
             // priv info
             let mod_title_line = 140; // as long as the modarchive toolbar doesnt change this is stable
@@ -358,6 +449,7 @@ pub mod scraper {
             )
         }
 
+        /// Get every detail about a module and return a [`ModInfo`]
         pub fn get_full_details_as_struct(module_id: u32) -> ModInfo {
             // priv info
             let mod_title_line = 140; // as long as the modarchive toolbar doesnt change this is stable
@@ -588,7 +680,14 @@ pub mod scraper {
         }
     }
 
+    /// Module containing scraper functions that resolve to a modarchive module ID
     pub mod resolver {
+        /// Resolve a filename to a module id ([`u32`])
+        ///
+        /// Resolve a filename ([`&str`]) to a [`Result`] which on failure will return
+        /// a variation of [`crate::scraper::Error`]. otherwise it will return a
+        /// module id as u32 which you can use in functions of the [`crate::scraper::requests`]
+        /// module that will ultimately give you all of the information about the module.
         pub fn resolve_mod_filename(mod_filename: &str) -> Result<u32, crate::scraper::Error> {
             let body: String = ureq::get(
                 format!(

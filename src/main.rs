@@ -10,7 +10,7 @@ fn main() {
             )
             .unwrap();
             let mod_info = requests::get_full_details_as_struct(mod_id);
-            println!("{:?}", mod_info);
+            println!("{:#?}", mod_info);
             /* or if you want it pre-formatted as csv:
             let mod_info = requests::get_full_details_as_string(mod_id);
             println!("{}", mod_info);
