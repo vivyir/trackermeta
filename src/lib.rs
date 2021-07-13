@@ -733,7 +733,7 @@ pub mod scraper {
 
 #[cfg(test)]
 mod tests {
-    use crate::scraper::requests::get_full_details_as_string;
+    use crate::scraper::requests::{get_full_details_as_string, get_full_details_as_struct};
     use crate::scraper::resolver::resolve_mod_filename;
 
     #[test]
@@ -752,6 +752,24 @@ mod tests {
     fn spotlit_modid() {
         let module = get_full_details_as_string(158263);
         assert_eq!(module.split(',').nth(7).unwrap(), "true");
+    }
+
+    #[test]
+    fn invalid_modid_struct() {
+        let invalid = get_full_details_as_struct(30638);
+        assert_eq!(invalid.info_mod_status, "absent");
+    }
+
+    #[test]
+    fn valid_modid_struct() {
+        let valid = get_full_details_as_struct(99356);
+        assert_eq!(valid.info_mod_status, "present");
+    }
+
+    #[test]
+    fn spotlit_modid_struct() {
+        let module = get_full_details_as_struct(158263);
+        assert_eq!(module.info_mod_spotlit, true);
     }
 
     #[test]
