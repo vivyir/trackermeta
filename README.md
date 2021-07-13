@@ -10,7 +10,7 @@ and use the `scraper::ModInfo` struct inside your code to make it more readable.
 
 ## Examples
 The src/main.rs includes a full example on how to use the library which is
-only 17 lines of code!
+only 19 SLOC!
 
 And there is 3 other examples both included in the docs and the `examples/`
 directory which are simpler.

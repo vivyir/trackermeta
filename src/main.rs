@@ -9,15 +9,16 @@ fn main() {
                     .expect("No filename provided as second argument."),
             )
             .unwrap();
+            let test = requests::get_instrument_text(mod_id).unwrap();
+            println!("{}", test);
+
+            println!("\n----------------------------------------\n");
+
             let mod_info = requests::get_full_details_as_struct(mod_id);
             println!("{:#?}", mod_info);
             /* or if you want it pre-formatted as csv:
             let mod_info = requests::get_full_details_as_string(mod_id);
             println!("{}", mod_info);
-
-            // or if you want to get the instrument text
-            let test = requests::get_instrument_text(mod_id).unwrap();
-            println!("{}", test);
             */
         }
         _ => println!("Usage: trackermeta get <filename>"),
