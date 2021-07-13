@@ -4,9 +4,9 @@
 //! result, extracts module id and then gets the full details for it as a single
 //! csv record which the structure of it can be seen in the docs of the
 //! first function of the [`scraper::requests`] module or alternatively as a
-//! [`scraper::ModInfo`] struct using the function 
+//! [`scraper::ModInfo`] struct using the function
 //! [`scraper::requests::get_full_details_as_struct`].
-//! 
+//!
 //! ## Example: Get module info as a struct using a module id
 //! ```rust
 //! use trackermeta::scraper::requests;
@@ -39,7 +39,12 @@
 //! }
 //! ```
 //!
+//! There are more examples other than these which showcase more, remember
+//! to check the `examples` directory!
+//!
 //! [Modarchive]: https://modarchive.org
+#![allow(clippy::needless_doctest_main)]
+#![forbid(unsafe_code)]
 
 use chrono::prelude::{DateTime, Utc};
 
@@ -158,6 +163,46 @@ pub mod scraper {
         use crate::iso8601_time;
         use crate::scraper::ModInfo;
 
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "infinity-retry")] {
+                fn inner_request(mod_id: u32) -> String{
+                    loop {
+                        match ureq::get(
+                            format!(
+                                "https://modarchive.org/index.php?request=view_by_moduleid&query={}",
+                                mod_id
+                            )
+                            .as_str(),
+                        )
+                        .timeout(std::time::Duration::from_secs(60))
+                        .call() {
+                            Ok(req) => {
+                                return req.into_string().unwrap()
+                            }
+                            Err(_) => continue,
+                        };
+                    }
+                }
+            } else {
+                fn inner_request(mod_id: u32) -> String {
+                    let body = ureq::get(
+                        format!(
+                            "https://modarchive.org/index.php?request=view_by_moduleid&query={}",
+                            mod_id
+                        )
+                        .as_str(),
+                    )
+                    .timeout(std::time::Duration::from_secs(60))
+                    .call()
+                    .unwrap()
+                    .into_string()
+                    .unwrap();
+
+                    body
+                }
+            }
+        }
+
         /// Get every detail about a module and return a [`String`]
         ///
         /// The string returned is formatted using the [`format!()`] macro
@@ -220,46 +265,6 @@ pub mod scraper {
                 mod_filename_line = line_tuple.0;
                 mod_info_line = line_tuple.1;
                 mod_download_line = line_tuple.2;
-            }
-
-            cfg_if::cfg_if! {
-                if #[cfg(feature = "infinity-retry")] {
-                    fn inner_request(mod_id: u32) -> String{
-                        loop {
-                            match ureq::get(
-                                format!(
-                                    "https://modarchive.org/index.php?request=view_by_moduleid&query={}",
-                                    mod_id
-                                )
-                                .as_str(),
-                            )
-                            .timeout(std::time::Duration::from_secs(60))
-                            .call() {
-                                Ok(req) => {
-                                    return req.into_string().unwrap()
-                                }
-                                Err(_) => continue,
-                            };
-                        }
-                    }
-                } else {
-                    fn inner_request(mod_id: u32) -> String {
-                        let body = ureq::get(
-                            format!(
-                                "https://modarchive.org/index.php?request=view_by_moduleid&query={}",
-                                mod_id
-                            )
-                            .as_str(),
-                        )
-                        .timeout(std::time::Duration::from_secs(60))
-                        .call()
-                        .unwrap()
-                        .into_string()
-                        .unwrap();
-
-                        body
-                    }
-                }
             }
 
             let body: String = inner_request(mod_id);
@@ -488,46 +493,6 @@ pub mod scraper {
                 mod_download_line = line_tuple.2;
             }
 
-            cfg_if::cfg_if! {
-                if #[cfg(feature = "infinity-retry")] {
-                    fn inner_request(mod_id: u32) -> String{
-                        loop {
-                            match ureq::get(
-                                format!(
-                                    "https://modarchive.org/index.php?request=view_by_moduleid&query={}",
-                                    mod_id
-                                )
-                                .as_str(),
-                            )
-                            .timeout(std::time::Duration::from_secs(60))
-                            .call() {
-                                Ok(req) => {
-                                    return req.into_string().unwrap()
-                                }
-                                Err(_) => continue,
-                            };
-                        }
-                    }
-                } else {
-                    fn inner_request(mod_id: u32) -> String {
-                        let body = ureq::get(
-                            format!(
-                                "https://modarchive.org/index.php?request=view_by_moduleid&query={}",
-                                mod_id
-                            )
-                            .as_str(),
-                        )
-                        .timeout(std::time::Duration::from_secs(60))
-                        .call()
-                        .unwrap()
-                        .into_string()
-                        .unwrap();
-
-                        body
-                    }
-                }
-            }
-
             let body: String = inner_request(mod_id);
 
             let mod_status_text = body.split('\n').nth(184 - 1).unwrap();
@@ -678,6 +643,80 @@ pub mod scraper {
                 info_mod_upload_date: mod_upload_date.into(),
             }
         }
+
+        /// Get the instrument text/internal text by mod id
+        ///
+        /// This function gets the instrument text of any module id and
+        /// returns a [`Result`] because the supplied module id may not
+        /// be present, this function takes care of discarding comments
+        /// and reviews if they exist and is the first fucntion to use
+        /// a "semi-stable" anchor, since it detects comments and
+        /// increments the anchor appropriately.
+        ///
+        /// Although even after all of that there is still a chance of
+        /// failure since it hasn't gone thru rigorous testing, only
+        /// some small modules here and there were tested, so don't
+        /// treat it as a rock solid function.
+        pub fn get_instrument_text(module_id: u32) -> Result<String, crate::scraper::Error> {
+            let mut mod_status = "present";
+            let mod_instr_text_div_line = 278;
+            let mut mod_instr_text_line;
+            let mut mod_instr_text = String::from("");
+
+            let body: String = inner_request(module_id);
+
+            let mod_status_text = body.split('\n').nth(184 - 1).unwrap();
+            if mod_status_text.is_empty() {
+                mod_status = "absent";
+            }
+
+            if mod_status != "absent" {
+                {
+                    /* between these two comment lines is the only non-boilerplate code */
+                    let mut loopcounter = mod_instr_text_div_line;
+                    loop {
+                        let local_text = body.split('\n').nth(loopcounter - 1).unwrap();
+
+                        if local_text == "<div class=\"mod-page-instrument-text\">" {
+                            break;
+                        }
+
+                        loopcounter += 1;
+                    }
+
+                    mod_instr_text_line = loopcounter + 9;
+
+                    let mod_spotlit_text = body.split('\n').nth(170 - 1).unwrap();
+                    if !mod_spotlit_text.is_empty() {
+                        mod_instr_text_line += 6;
+                    }
+
+                    let mut loopcounter = mod_instr_text_line;
+                    loop {
+                        let local_text = body.split('\n').nth(loopcounter - 1).unwrap();
+
+                        if local_text == "</pre>" {
+                            break;
+                        }
+
+                        mod_instr_text.push_str(local_text);
+                        mod_instr_text.push('\n');
+
+                        loopcounter += 1;
+                    }
+
+                    let mod_instr_text = escaper::decode_html(&mod_instr_text)
+                        .unwrap()
+                        .trim()
+                        .to_string();
+                    /* ---------------------------------------------------------------- */
+
+                    Ok(mod_instr_text)
+                }
+            } else {
+                Err(crate::scraper::Error::NotFound)
+            }
+        }
     }
 
     /// Module containing scraper functions that resolve to a modarchive module ID
@@ -733,8 +772,27 @@ pub mod scraper {
 
 #[cfg(test)]
 mod tests {
-    use crate::scraper::requests::{get_full_details_as_string, get_full_details_as_struct};
+    use crate::scraper::requests::{
+        get_full_details_as_string, get_full_details_as_struct, get_instrument_text,
+    };
     use crate::scraper::resolver::resolve_mod_filename;
+
+    #[test]
+    fn instr_text() {
+        let instr_text = get_instrument_text(61772).unwrap();
+        assert_eq!(
+            instr_text,
+            "7th  Dance
+
+             By:
+ Jari Ylamaki aka Yrde
+  27.11.2000 HELSINKI
+
+            Finland
+           SITE :
+  www.mp3.com/Yrde"
+        );
+    }
 
     #[test]
     fn invalid_modid() {
