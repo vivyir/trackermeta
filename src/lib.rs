@@ -125,37 +125,37 @@ pub mod scraper {
     #[derive(Debug)]
     pub struct ModInfo {
         /// The module ID of the module on modarchive
-        pub info_mod_id: u32,
+        pub mod_id: u32,
         /// Can be either `absent` or `present`
-        pub info_mod_status: String,
+        pub mod_status: String,
         /// The filename of the module
-        pub info_mod_filename: String,
+        pub mod_filename: String,
         /// The title of the module
-        pub info_mod_title: String,
+        pub mod_title: String,
         /// The file size of the module, use the
         /// crate `byte-unit` to convert them to other units
-        pub info_mod_size: String,
+        pub mod_size: String,
         /// The MD5 hash of the module file as a string
-        pub info_mod_md5: String,
+        pub mod_md5: String,
         /// The format of the module, for example `XM`, `IT`
         /// or `MOD` and more, basically the extension of the
         /// module file
-        pub info_mod_format: String,
+        pub mod_format: String,
         /// Spotlit module or not
-        pub info_mod_spotlit: bool,
+        pub mod_spotlit: bool,
         /// Download count of the module at the time of scraping
-        pub info_mod_download: u32,
+        pub mod_download: u32,
         /// Times the module has been favourited at the time of
         /// scraping
-        pub info_mod_fav: u32,
+        pub mod_fav: u32,
         /// The time when it was scraped
-        pub info_mod_scrape_time: String,
+        pub mod_scrape_time: String,
         /// The channel count of the module
-        pub info_mod_channel: u32,
+        pub mod_channel: u32,
         /// The genre of the module
-        pub info_mod_genre: String,
+        pub mod_genre: String,
         /// The upload date of the module
-        pub info_mod_upload_date: String,
+        pub mod_upload_date: String,
     }
 
     /// Module containing scraper requests you can make to modarchive
@@ -627,20 +627,20 @@ pub mod scraper {
             }
 
             ModInfo {
-                info_mod_id: mod_id,
-                info_mod_status: mod_status.into(),
-                info_mod_filename: mod_filename.into(),
-                info_mod_title: mod_title,
-                info_mod_size: mod_size.into(),
-                info_mod_md5: mod_md5.into(),
-                info_mod_format: mod_format,
-                info_mod_spotlit: mod_spotlit,
-                info_mod_download: mod_download,
-                info_mod_fav: mod_fav,
-                info_mod_scrape_time: mod_scrape_time,
-                info_mod_channel: mod_channel,
-                info_mod_genre: mod_genre.into(),
-                info_mod_upload_date: mod_upload_date.into(),
+                mod_id: mod_id,
+                mod_status: mod_status.into(),
+                mod_filename: mod_filename.into(),
+                mod_title: mod_title,
+                mod_size: mod_size.into(),
+                mod_md5: mod_md5.into(),
+                mod_format: mod_format,
+                mod_spotlit: mod_spotlit,
+                mod_download: mod_download,
+                mod_fav: mod_fav,
+                mod_scrape_time: mod_scrape_time,
+                mod_channel: mod_channel,
+                mod_genre: mod_genre.into(),
+                mod_upload_date: mod_upload_date.into(),
             }
         }
 
@@ -815,19 +815,19 @@ mod tests {
     #[test]
     fn invalid_modid_struct() {
         let invalid = get_full_details_as_struct(30638);
-        assert_eq!(invalid.info_mod_status, "absent");
+        assert_eq!(invalid.mod_status, "absent");
     }
 
     #[test]
     fn valid_modid_struct() {
         let valid = get_full_details_as_struct(99356);
-        assert_eq!(valid.info_mod_status, "present");
+        assert_eq!(valid.mod_status, "present");
     }
 
     #[test]
     fn spotlit_modid_struct() {
         let module = get_full_details_as_struct(158263);
-        assert_eq!(module.info_mod_spotlit, true);
+        assert_eq!(module.mod_spotlit, true);
     }
 
     #[test]
