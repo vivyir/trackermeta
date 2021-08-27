@@ -1,9 +1,9 @@
 [package]
 name = "trackermeta"
-version = "0.3.1"
+version = "0.4.0"
 authors = ["phnixir <67435287+phnixir@users.noreply.github.com>"]
 edition = "2018"
-description = "Simple library/utility to get modarchive module data"
+description = "Simple library to get and parse modarchive module data"
 readme = "README.md"
 repository = "https://github.com/phnixir/trackermeta"
 license = "MPL-2.0"
