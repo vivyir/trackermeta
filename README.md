@@ -1,19 +1,15 @@
 # Trackermeta
-This is a simple library and a small utility crate that helps with parsing
+This is a simple library crate that helps with parsing
 data from the website called [Modarchive](https://modarchive.org), the
-utility searches modarchive for the filename provided, gets the most likely
-result, extracts module id and then gets the full details for it as a single
-csv record which the structure of it can be seen in the docs of the function
-`scraper::requests::get_full_details_as_string`, alternatively and the way
-which i recommend is to use `scraper::requests::get_full_details_as_struct`,
-and use the `scraper::ModInfo` struct inside your code to make it more readable.
+functions provided inside the `scraper::requests` module send requests to
+modarchive, parse the webpage and provide you with the requested info.
+Do check out the docs for each module if you need more info about their
+usage, in the `scraper::resolver` module you can find function(s) which
+search modarchive for the provided info. Again, docs are your friend.
 
 ## Examples
-The src/main.rs includes a full example on how to use the library which is
-only 19 SLOC!
-
-And there is 3 other examples both included in the docs and the `examples/`
-directory which are simpler.
+Check out the [examples/](https://github.com/phnixir/trackermeta/tree/master/examples)
+directory on the github repo for all examples using the library
 
 ## Features
 
