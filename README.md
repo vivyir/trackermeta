@@ -8,7 +8,7 @@ usage, in the `scraper::resolver` module you can find function(s) which
 search modarchive for the provided info. Again, docs are your friend.
 
 ## Examples
-Check out the [examples/](https://github.com/phnixir/trackermeta/tree/master/examples)
+Check out the [examples/](https://github.com/vivyir/trackermeta/tree/master/examples)
 directory on the github repo for all examples using the library
 
 ## Features

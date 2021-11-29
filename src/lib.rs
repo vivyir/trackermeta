@@ -627,18 +627,18 @@ pub mod scraper {
             }
 
             ModInfo {
-                mod_id: mod_id,
+                mod_id,
                 mod_status: mod_status.into(),
                 mod_filename: mod_filename.into(),
-                mod_title: mod_title,
+                mod_title,
                 mod_size: mod_size.into(),
                 mod_md5: mod_md5.into(),
-                mod_format: mod_format,
-                mod_spotlit: mod_spotlit,
-                mod_download: mod_download,
-                mod_fav: mod_fav,
-                mod_scrape_time: mod_scrape_time,
-                mod_channel: mod_channel,
+                mod_format,
+                mod_spotlit,
+                mod_download,
+                mod_fav,
+                mod_scrape_time,
+                mod_channel,
                 mod_genre: mod_genre.into(),
                 mod_upload_date: mod_upload_date.into(),
             }
