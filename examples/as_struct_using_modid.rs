@@ -1,4 +1,4 @@
-use trackermeta::scraper::ModInfo;
+use trackermeta::ModInfo;
 
 fn main() {
     let modinfo = ModInfo::get(51772).unwrap();

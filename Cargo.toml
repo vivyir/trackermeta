@@ -1,26 +1,24 @@
 [package]
 name = "trackermeta"
-version = "0.4.3"
+version = "0.5.0"
 authors = ["vivyir <ayitsmephoenix@airmail.cc>"]
 edition = "2021"
 description = "Simple library to get and parse modarchive module data"
 readme = "README.md"
 repository = "https://github.com/vivyir/trackermeta"
 license = "MPL-2.0"
-keywords = ["modarchive", "scraping", "tracker"]
+keywords = ["modarchive", "metadata", "tracker"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 doctest = false
 
 [features]
-overridable = []
 infinity-retry = []
 
 [dependencies]
 ureq = "2.1"
 escaper = "0.1.1"
 chrono = "0.4"
-platform-dirs = "0.3"
 cfg-if = "1.0"
 tl = "0.7.1"
