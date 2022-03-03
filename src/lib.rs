@@ -9,33 +9,22 @@
 //!
 //! ## Example: Get module info as a struct using a module id
 //! ```rust
-//! use trackermeta::scraper::requests;
+//! use trackermeta::scraper::ModInfo;
 //!
 //! fn main() {
-//!     let modinfo = requests::get_full_details_as_struct(51772);
+//!     let modinfo = ModInfo::get(51772).unwrap();
 //!     println!("{:#?}", modinfo);
 //! }
 //! ```
 //!
 //! ## Example: Resolve filename to id then use id to get the info as struct
 //! ```rust
-//! use trackermeta::scraper::{requests, resolver};
+//! use trackermeta::scraper::{ModInfo, resolver};
 //!
 //! fn main() {
 //!     let modid = resolver::resolve_mod_filename("noway.s3m").unwrap();
-//!     let modinfo = requests::get_full_details_as_struct(modid);
+//!     let modinfo = ModInfo::get(modid).unwrap();
 //!     println!("{:#?}", modinfo);
-//! }
-//! ```
-//!
-//! ## Example: Resolve filename to id then use id to get the info as string
-//! ```rust
-//! use trackermeta::scraper::{requests, resolver};
-//!
-//! fn main() {
-//!     let modid = resolver::resolve_mod_filename("noway.s3m").unwrap();
-//!     let modinfo = requests::get_full_details_as_string(modid);
-//!     println!("{}", modinfo);
 //! }
 //! ```
 //!
@@ -115,6 +104,8 @@ pub mod scraper {
     #[cfg(feature = "overridable")]
     use crate::load_lines;
 
+    use crate::iso8601_time;
+
     /// Error enum for functions in the crate that return a [`Result`]
     #[derive(Debug)]
     pub enum Error {
@@ -125,67 +116,44 @@ pub mod scraper {
     #[derive(Debug)]
     pub struct ModInfo {
         /// The module ID of the module on modarchive
-        pub mod_id: u32,
-        /// Can be either `absent` or `present`
-        pub mod_status: String,
+        pub id: u32,
         /// The filename of the module
-        pub mod_filename: String,
+        pub filename: String,
         /// The title of the module
-        pub mod_title: String,
+        pub title: String,
         /// The file size of the module, use the
         /// crate `byte-unit` to convert them to other units
-        pub mod_size: String,
+        pub size: String,
         /// The MD5 hash of the module file as a string
-        pub mod_md5: String,
+        pub md5: String,
         /// The format of the module, for example `XM`, `IT`
         /// or `MOD` and more, basically the extension of the
         /// module file
-        pub mod_format: String,
+        pub format: String,
         /// Spotlit module or not
-        pub mod_spotlit: bool,
+        pub spotlit: bool,
         /// Download count of the module at the time of scraping
-        pub mod_download: u32,
+        pub download_count: u32,
         /// Times the module has been favourited at the time of
         /// scraping
-        pub mod_fav: u32,
+        pub fav_count: u32,
         /// The time when it was scraped
-        pub mod_scrape_time: String,
+        pub scrape_time: String,
         /// The channel count of the module
-        pub mod_channel: u32,
+        pub channel_count: u32,
         /// The genre of the module
-        pub mod_genre: String,
+        pub genre: String,
         /// The upload date of the module
-        pub mod_upload_date: String,
+        pub upload_date: String,
+        /// The instrument text of the module
+        pub instrument_text: String,
     }
 
-    /// Module containing scraper requests you can make to modarchive
-    pub mod requests {
-        use crate::iso8601_time;
-        use crate::scraper::ModInfo;
-
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "infinity-retry")] {
-                fn inner_request(mod_id: u32) -> String{
-                    loop {
-                        match ureq::get(
-                            format!(
-                                "https://modarchive.org/index.php?request=view_by_moduleid&query={}",
-                                mod_id
-                            )
-                            .as_str(),
-                        )
-                        .timeout(std::time::Duration::from_secs(60))
-                        .call() {
-                            Ok(req) => {
-                                return req.into_string().unwrap()
-                            }
-                            Err(_) => continue,
-                        };
-                    }
-                }
-            } else {
-                fn inner_request(mod_id: u32) -> String {
-                    let body = ureq::get(
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "infinity-retry")] {
+            fn inner_request(mod_id: u32) -> String{
+                loop {
+                    match ureq::get(
                         format!(
                             "https://modarchive.org/index.php?request=view_by_moduleid&query={}",
                             mod_id
@@ -193,529 +161,287 @@ pub mod scraper {
                         .as_str(),
                     )
                     .timeout(std::time::Duration::from_secs(60))
-                    .call()
-                    .unwrap()
-                    .into_string()
-                    .unwrap();
-
-                    body
+                    .call() {
+                        Ok(req) => {
+                            return req.into_string().unwrap()
+                        }
+                        Err(_) => continue,
+                    };
                 }
             }
-        }
-
-        /// Get every detail about a module and return a [`String`]
-        ///
-        /// The string returned is formatted using the [`format!()`] macro
-        /// like so:
-        /// ```rust
-        /// format!(
-        ///    "{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
-        ///     mod_id,
-        ///     mod_status,
-        ///     mod_filename,
-        ///     mod_title,
-        ///     mod_size,
-        ///     mod_md5,
-        ///     mod_format,
-        ///     mod_spotlit,
-        ///     mod_download,
-        ///     mod_fav,
-        ///     mod_scrape_time,
-        ///     mod_channel,
-        ///     mod_genre,
-        ///     mod_upload_date
-        /// )
-        /// ```
-        /// And an example string returned would be:
-        ///
-        /// `51772,present,noway.s3m,No Way To Know,140.78KB,ebbf37d7c868f3c3c551702711fe8512,S3M,false,1938,0,2021-07-13T09:07:50.641382301+00:00,10,Trance - Dream,Fri 27th Nov 1998`
-        pub fn get_full_details_as_string(module_id: u32) -> String {
-            // priv info
-            let mod_title_line = 140; // as long as the modarchive toolbar doesnt change this is stable
-            let mut mod_filename_line = 178;
-            let mut mod_info_line = 192;
-            let mut mod_download_line = 198;
-            let mut mod_fav_line = mod_download_line + 1;
-            let mut mod_md5_line = mod_fav_line + 1;
-            let mut mod_channel_line = mod_md5_line + 2;
-            let mut mod_size_line = mod_channel_line + 1;
-            let mut mod_genre_line = mod_size_line + 1;
-
-            // front facing info
-            let mut mod_spotlit = false;
-            let mut mod_format = String::from("invalid");
-            let mut mod_filename = "invalid";
-            let mut mod_title = String::from("invalid");
-            let mut mod_status = "present";
-            let mut mod_upload_date = "Thu 1st Jan 1970";
-            let mut mod_download: u32 = 0;
-            let mut mod_fav: u32 = 0;
-            let mut mod_md5 = "00000000000000000000000000000000";
-            let mut mod_channel: u32 = 0;
-            let mut mod_size = "0B";
-            let mut mod_genre = "n/a";
-            let mod_scrape_time = iso8601_time(&std::time::SystemTime::now());
-
-            // special info
-            let mod_id = module_id;
-
-            #[cfg(feature = "overridable")]
-            {
-                let line_tuple = load_lines(mod_filename_line, mod_info_line, mod_download_line);
-                mod_filename_line = line_tuple.0;
-                mod_info_line = line_tuple.1;
-                mod_download_line = line_tuple.2;
-            }
-
-            let body: String = inner_request(mod_id);
-
-            let mod_status_text = body.split('\n').nth(184 - 1).unwrap();
-            if mod_status_text.is_empty() {
-                mod_status = "absent";
-            }
-
-            if mod_status != "absent" {
-                {
-                    let mod_spotlit_text = body.split('\n').nth(170 - 1).unwrap();
-                    if !mod_spotlit_text.is_empty() {
-                        mod_spotlit = true;
-                        mod_filename_line += 6;
-                        mod_download_line += 6;
-                        mod_info_line += 6;
-                        mod_fav_line = mod_download_line + 1;
-                        mod_md5_line = mod_fav_line + 1;
-                        mod_channel_line = mod_md5_line + 2;
-                        mod_size_line = mod_channel_line + 1;
-                        mod_genre_line = mod_size_line + 1;
-                    }
-                }
-
-                mod_filename = body
-                    .split('\n')
-                    .nth(mod_filename_line - 1)
-                    .unwrap()
-                    .split('#')
-                    .nth(1)
-                    .unwrap()
-                    .split("\">")
-                    .next()
-                    .unwrap();
-
-                mod_title = escaper::decode_html(
-                    body.split('\n')
-                        .nth(mod_title_line - 1)
-                        .unwrap()
-                        .split("<h1>")
-                        .nth(1)
-                        .unwrap()
-                        .split(" <span class")
-                        .next()
-                        .unwrap(),
+        } else {
+            fn inner_request(mod_id: u32) -> String {
+                let body = ureq::get(
+                    format!(
+                        "https://modarchive.org/index.php?request=view_by_moduleid&query={}",
+                        mod_id
+                    )
+                    .as_str(),
                 )
+                .timeout(std::time::Duration::from_secs(60))
+                .call()
+                .unwrap()
+                .into_string()
                 .unwrap();
 
-                mod_download = body
-                    .split('\n')
-                    .nth(mod_download_line - 1)
-                    .unwrap()
-                    .split("Downloads: ")
-                    .nth(1)
-                    .unwrap()
-                    .split("</li>")
-                    .next()
-                    .unwrap()
-                    .parse()
-                    .unwrap();
-
-                mod_fav = body
-                    .split('\n')
-                    .nth(mod_fav_line - 1)
-                    .unwrap()
-                    .split("Favourited: ")
-                    .nth(1)
-                    .unwrap()
-                    .split(" times</li>")
-                    .next()
-                    .unwrap()
-                    .parse()
-                    .unwrap();
-
-                mod_md5 = body
-                    .split('\n')
-                    .nth(mod_md5_line - 1)
-                    .unwrap()
-                    .split("MD5: ")
-                    .nth(1)
-                    .unwrap()
-                    .split("</li>")
-                    .next()
-                    .unwrap();
-
-                mod_channel = body
-                    .split('\n')
-                    .nth(mod_channel_line - 1)
-                    .unwrap()
-                    .split("Channels: ")
-                    .nth(1)
-                    .unwrap()
-                    .split("</li>")
-                    .next()
-                    .unwrap()
-                    .parse()
-                    .unwrap();
-
-                mod_size = body
-                    .split('\n')
-                    .nth(mod_size_line - 1)
-                    .unwrap()
-                    .split("Uncompressed Size: ")
-                    .nth(1)
-                    .unwrap()
-                    .split("</li>")
-                    .next()
-                    .unwrap();
-
-                mod_genre = body
-                    .split('\n')
-                    .nth(mod_genre_line - 1)
-                    .unwrap()
-                    .split("Genre: ")
-                    .nth(1)
-                    .unwrap()
-                    .split("</li>")
-                    .next()
-                    .unwrap();
-
-                mod_upload_date = body
-                    .split('\n')
-                    .nth(mod_info_line - 1)
-                    .unwrap()
-                    .split("</b> times since ")
-                    .nth(1)
-                    .unwrap()
-                    .split(" :D")
-                    .next()
-                    .unwrap();
-
-                mod_format = mod_filename.split('.').nth(1).unwrap().to_uppercase();
+                body
             }
-
-            // formatted nicely
-            /*
-                println!(
-                    r#"
-            Module ID: {}
-            Mod status: {}
-            Spotlit: {}
-            Scraped at: {}
-            Filename: {}
-            Format: {}
-            Downloaded: {} times
-            Favourited: {} times
-            MD5: {}
-            Channels: {}
-            Size: {}
-            Genre: {}
-            Upload date: {}
-                    "#,
-                    mod_id,
-                    mod_status,
-                    mod_spotlit,
-                    mod_scrape_time,
-                    mod_filename,
-                    mod_format,
-                    mod_download,
-                    mod_fav,
-                    mod_md5,
-                    mod_channel,
-                    mod_size,
-                    mod_genre,
-                    mod_upload_date
-                );
-                */
-
-            // csv style
-            format!(
-                "{},{},{},\"{}\",{},{},{},{},{},{},{},{},{},{}",
-                mod_id,
-                mod_status,
-                mod_filename,
-                mod_title,
-                mod_size,
-                mod_md5,
-                mod_format,
-                mod_spotlit,
-                mod_download,
-                mod_fav,
-                mod_scrape_time,
-                mod_channel,
-                mod_genre,
-                mod_upload_date
-            )
         }
+    }
 
-        /// Get every detail about a module and return a [`ModInfo`]
-        pub fn get_full_details_as_struct(module_id: u32) -> ModInfo {
-            // priv info
-            let mod_title_line = 140; // as long as the modarchive toolbar doesnt change this is stable
-            let mut mod_filename_line = 178;
-            let mut mod_info_line = 192;
-            let mut mod_download_line = 198;
-            let mut mod_fav_line = mod_download_line + 1;
-            let mut mod_md5_line = mod_fav_line + 1;
-            let mut mod_channel_line = mod_md5_line + 2;
-            let mut mod_size_line = mod_channel_line + 1;
-            let mut mod_genre_line = mod_size_line + 1;
+    impl ModInfo {
+        pub fn get(mod_id: u32) -> Result<ModInfo, crate::scraper::Error> {
+            let body = inner_request(mod_id);
 
-            // front facing info
-            let mut mod_spotlit = false;
-            let mut mod_format = "invalid".to_string();
-            let mut mod_filename = "invalid";
-            let mut mod_title = String::from("invalid");
-            let mut mod_status = "present";
-            let mut mod_upload_date = "Thu 1st Jan 1970";
-            let mut mod_download: u32 = 0;
-            let mut mod_fav: u32 = 0;
-            let mut mod_md5 = "00000000000000000000000000000000";
-            let mut mod_channel: u32 = 0;
-            let mut mod_size = "0B";
-            let mut mod_genre = "n/a";
-            let mod_scrape_time = iso8601_time(&std::time::SystemTime::now());
+            let dom = tl::parse(body.as_ref(), tl::ParserOptions::default()).unwrap();
+            let parser = dom.parser();
 
-            // special info
-            let mod_id = module_id;
+            let id = mod_id;
+            let scrape_time = iso8601_time(&std::time::SystemTime::now());
 
-            #[cfg(feature = "overridable")]
-            {
-                let line_tuple = load_lines(mod_filename_line, mod_info_line, mod_download_line);
-                mod_filename_line = line_tuple.0;
-                mod_info_line = line_tuple.1;
-                mod_download_line = line_tuple.2;
-            }
+            let valid = {
+                let mut iter = dom.get_elements_by_class_name("mod-page-archive-info");
 
-            let body: String = inner_request(mod_id);
-
-            let mod_status_text = body.split('\n').nth(184 - 1).unwrap();
-            if mod_status_text.is_empty() {
-                mod_status = "absent";
-            }
-
-            if mod_status != "absent" {
-                {
-                    let mod_spotlit_text = body.split('\n').nth(170 - 1).unwrap();
-                    if !mod_spotlit_text.is_empty() {
-                        mod_spotlit = true;
-                        mod_filename_line += 6;
-                        mod_download_line += 6;
-                        mod_info_line += 6;
-                        mod_fav_line = mod_download_line + 1;
-                        mod_md5_line = mod_fav_line + 1;
-                        mod_channel_line = mod_md5_line + 2;
-                        mod_size_line = mod_channel_line + 1;
-                        mod_genre_line = mod_size_line + 1;
-                    }
+                match iter.next() {
+                    Some(_) => true,
+                    None => false,
                 }
+            };
 
-                mod_filename = body
-                    .split('\n')
-                    .nth(mod_filename_line - 1)
-                    .unwrap()
-                    .split('#')
-                    .nth(1)
-                    .unwrap()
-                    .split("\">")
+            if valid == false {
+                return Err(crate::scraper::Error::NotFound);
+            }
+
+            let filename = {
+                dom.get_elements_by_class_name("module-sub-header")
                     .next()
-                    .unwrap();
+                    .unwrap() // we can unwrap because if its absent we've already errored up above
+                    .get(parser)
+                    .unwrap()
+                    .inner_text(parser)
+                    .replace("(", "")
+                    .replace(")", "")
+            };
 
-                mod_title = escaper::decode_html(
-                    body.split('\n')
-                        .nth(mod_title_line - 1)
+            let title = {
+                escaper::decode_html(
+                    &dom.query_selector("h1")
+                        .and_then(|mut iter| iter.next())
                         .unwrap()
-                        .split("<h1>")
-                        .nth(1)
+                        .get(parser)
                         .unwrap()
-                        .split(" <span class")
-                        .next()
-                        .unwrap(),
+                        .inner_text(parser)
+                        .replace(&format!(" ({})", &filename), ""),
                 )
-                .unwrap();
+                .unwrap()
+            };
 
-                mod_download = body
-                    .split('\n')
-                    .nth(mod_download_line - 1)
+            let size = {
+                dom.query_selector("li.stats")
+                    // get the 8th hit (nth starts from 0)
+                    .and_then(|mut iter| iter.nth(7))
                     .unwrap()
-                    .split("Downloads: ")
-                    .nth(1)
+                    .get(parser)
                     .unwrap()
-                    .split("</li>")
-                    .next()
+                    .inner_text(parser)
+                    .replace("Uncompressed Size: ", "")
+            };
+
+            let md5 = {
+                dom.query_selector("li.stats")
+                    .and_then(|mut iter| iter.nth(4))
                     .unwrap()
+                    .get(parser)
+                    .unwrap()
+                    .inner_text(parser)
+                    .replace("MD5: ", "")
+            };
+
+            let format = {
+                dom.query_selector("li.stats")
+                    .and_then(|mut iter| iter.nth(5))
+                    .unwrap()
+                    .get(parser)
+                    .unwrap()
+                    .inner_text(parser)
+                    .replace("Format: ", "")
+            };
+
+            let spotlit = {
+                let mut iter = dom.get_elements_by_class_name("mod-page-featured");
+
+                match iter.next() {
+                    Some(_) => true,
+                    None => false,
+                }
+            };
+
+            let download_count = {
+                dom.query_selector("li.stats")
+                    .and_then(|mut iter| iter.nth(2))
+                    .unwrap()
+                    .get(parser)
+                    .unwrap()
+                    .inner_text(parser)
+                    .replace("Downloads: ", "")
                     .parse()
-                    .unwrap();
+                    .unwrap()
+            };
 
-                mod_fav = body
-                    .split('\n')
-                    .nth(mod_fav_line - 1)
+            let fav_count = {
+                dom.query_selector("li.stats")
+                    .and_then(|mut iter| iter.nth(3))
                     .unwrap()
-                    .split("Favourited: ")
-                    .nth(1)
+                    .get(parser)
                     .unwrap()
-                    .split(" times</li>")
-                    .next()
-                    .unwrap()
+                    .inner_text(parser)
+                    .replace("Favourited: ", "")
+                    .replace(" times", "")
                     .parse()
-                    .unwrap();
+                    .unwrap()
+            };
 
-                mod_md5 = body
-                    .split('\n')
-                    .nth(mod_md5_line - 1)
+            let channel_count = {
+                dom.query_selector("li.stats")
+                    .and_then(|mut iter| iter.nth(6))
                     .unwrap()
-                    .split("MD5: ")
-                    .nth(1)
+                    .get(parser)
                     .unwrap()
-                    .split("</li>")
-                    .next()
-                    .unwrap();
-
-                mod_channel = body
-                    .split('\n')
-                    .nth(mod_channel_line - 1)
-                    .unwrap()
-                    .split("Channels: ")
-                    .nth(1)
-                    .unwrap()
-                    .split("</li>")
-                    .next()
-                    .unwrap()
+                    .inner_text(parser)
+                    .replace("Channels: ", "")
                     .parse()
-                    .unwrap();
-
-                mod_size = body
-                    .split('\n')
-                    .nth(mod_size_line - 1)
                     .unwrap()
-                    .split("Uncompressed Size: ")
+            };
+
+            let genre = {
+                dom.query_selector("li.stats")
+                    .and_then(|mut iter| iter.nth(8))
+                    .unwrap()
+                    .get(parser)
+                    .unwrap()
+                    .inner_text(parser)
+                    .replace("Genre: ", "")
+            };
+
+            let upload_date = {
+                dom.query_selector("li.stats")
+                    .and_then(|mut iter| iter.next())
+                    .unwrap()
+                    .get(parser)
+                    .unwrap()
+                    .inner_text(parser)
+                    .split(" times since ")
                     .nth(1)
                     .unwrap()
-                    .split("</li>")
-                    .next()
-                    .unwrap();
+                    .replace(" :D", "")
+                    .trim()
+                    .into()
+            };
 
-                mod_genre = body
-                    .split('\n')
-                    .nth(mod_genre_line - 1)
-                    .unwrap()
-                    .split("Genre: ")
-                    .nth(1)
-                    .unwrap()
-                    .split("</li>")
-                    .next()
-                    .unwrap();
+            let instrument_text = {
+                escaper::decode_html(
+                    &dom.query_selector("pre")
+                        .and_then(|mut iter| iter.nth(1))
+                        .unwrap()
+                        .get(parser)
+                        .unwrap()
+                        .inner_text(parser),
+                )
+                .unwrap()
+                .trim()
+                .into()
+            };
 
-                mod_upload_date = body
-                    .split('\n')
-                    .nth(mod_info_line - 1)
-                    .unwrap()
-                    .split("</b> times since ")
-                    .nth(1)
-                    .unwrap()
-                    .split(" :D")
-                    .next()
-                    .unwrap();
+            Ok(ModInfo {
+                id,
+                filename,
+                title,
+                size,
+                md5,
+                format,
+                spotlit,
+                download_count,
+                fav_count,
+                scrape_time,
+                channel_count,
+                genre,
+                upload_date,
+                instrument_text,
+            })
+        }
+    }
 
-                mod_format = mod_filename.split('.').nth(1).unwrap().to_uppercase();
-            }
+    /// Get the instrument text/internal text by mod id
+    ///
+    /// This function gets the instrument text of any module id and
+    /// returns a [`Result`] because the supplied module id may not
+    /// be present, this function takes care of discarding comments
+    /// and reviews if they exist and is the first fucntion to use
+    /// a "semi-stable" anchor, since it detects comments and
+    /// increments the anchor appropriately.
+    ///
+    /// Although even after all of that there is still a chance of
+    /// failure since it hasn't gone thru rigorous testing, only
+    /// some small modules here and there were tested, so don't
+    /// treat it as a rock solid function.
+    pub fn get_instrument_text(module_id: u32) -> Result<String, crate::scraper::Error> {
+        let mut mod_status = "present";
+        let mod_instr_text_div_line = 278;
+        let mut mod_instr_text_line;
+        let mut mod_instr_text = String::from("");
 
-            ModInfo {
-                mod_id,
-                mod_status: mod_status.into(),
-                mod_filename: mod_filename.into(),
-                mod_title,
-                mod_size: mod_size.into(),
-                mod_md5: mod_md5.into(),
-                mod_format,
-                mod_spotlit,
-                mod_download,
-                mod_fav,
-                mod_scrape_time,
-                mod_channel,
-                mod_genre: mod_genre.into(),
-                mod_upload_date: mod_upload_date.into(),
-            }
+        let body: String = inner_request(module_id);
+
+        let mod_status_text = body.split('\n').nth(184 - 1).unwrap();
+        if mod_status_text.is_empty() {
+            mod_status = "absent";
         }
 
-        /// Get the instrument text/internal text by mod id
-        ///
-        /// This function gets the instrument text of any module id and
-        /// returns a [`Result`] because the supplied module id may not
-        /// be present, this function takes care of discarding comments
-        /// and reviews if they exist and is the first fucntion to use
-        /// a "semi-stable" anchor, since it detects comments and
-        /// increments the anchor appropriately.
-        ///
-        /// Although even after all of that there is still a chance of
-        /// failure since it hasn't gone thru rigorous testing, only
-        /// some small modules here and there were tested, so don't
-        /// treat it as a rock solid function.
-        pub fn get_instrument_text(module_id: u32) -> Result<String, crate::scraper::Error> {
-            let mut mod_status = "present";
-            let mod_instr_text_div_line = 278;
-            let mut mod_instr_text_line;
-            let mut mod_instr_text = String::from("");
+        if mod_status != "absent" {
+            {
+                /* between these two comment lines is the only non-boilerplate code */
+                let mut loopcounter = mod_instr_text_div_line;
+                loop {
+                    let local_text = body.split('\n').nth(loopcounter - 1).unwrap();
 
-            let body: String = inner_request(module_id);
-
-            let mod_status_text = body.split('\n').nth(184 - 1).unwrap();
-            if mod_status_text.is_empty() {
-                mod_status = "absent";
-            }
-
-            if mod_status != "absent" {
-                {
-                    /* between these two comment lines is the only non-boilerplate code */
-                    let mut loopcounter = mod_instr_text_div_line;
-                    loop {
-                        let local_text = body.split('\n').nth(loopcounter - 1).unwrap();
-
-                        if local_text == "<div class=\"mod-page-instrument-text\">" {
-                            break;
-                        }
-
-                        loopcounter += 1;
+                    if local_text == "<div class=\"mod-page-instrument-text\">" {
+                        break;
                     }
 
-                    mod_instr_text_line = loopcounter + 9;
-
-                    let mod_spotlit_text = body.split('\n').nth(170 - 1).unwrap();
-                    if !mod_spotlit_text.is_empty() {
-                        mod_instr_text_line += 6;
-                    }
-
-                    let mut loopcounter = mod_instr_text_line;
-                    loop {
-                        let local_text = body.split('\n').nth(loopcounter - 1).unwrap();
-
-                        if local_text == "</pre>" {
-                            break;
-                        }
-
-                        mod_instr_text.push_str(local_text);
-                        mod_instr_text.push('\n');
-
-                        loopcounter += 1;
-                    }
-
-                    let mod_instr_text = escaper::decode_html(&mod_instr_text)
-                        .unwrap()
-                        .trim()
-                        .to_string();
-                    /* ---------------------------------------------------------------- */
-
-                    Ok(mod_instr_text)
+                    loopcounter += 1;
                 }
-            } else {
-                Err(crate::scraper::Error::NotFound)
+
+                mod_instr_text_line = loopcounter + 9;
+
+                let mod_spotlit_text = body.split('\n').nth(170 - 1).unwrap();
+                if !mod_spotlit_text.is_empty() {
+                    mod_instr_text_line += 6;
+                }
+
+                let mut loopcounter = mod_instr_text_line;
+                loop {
+                    let local_text = body.split('\n').nth(loopcounter - 1).unwrap();
+
+                    if local_text == "</pre>" {
+                        break;
+                    }
+
+                    mod_instr_text.push_str(local_text);
+                    mod_instr_text.push('\n');
+
+                    loopcounter += 1;
+                }
+
+                let mod_instr_text = escaper::decode_html(&mod_instr_text)
+                    .unwrap()
+                    .trim()
+                    .to_string();
+                /* ---------------------------------------------------------------- */
+
+                Ok(mod_instr_text)
             }
+        } else {
+            Err(crate::scraper::Error::NotFound)
         }
     }
 
@@ -772,14 +498,12 @@ pub mod scraper {
 
 #[cfg(test)]
 mod tests {
-    use crate::scraper::requests::{
-        get_full_details_as_string, get_full_details_as_struct, get_instrument_text,
-    };
     use crate::scraper::resolver::resolve_mod_filename;
+    use crate::scraper::ModInfo;
 
     #[test]
     fn instr_text() {
-        let instr_text = get_instrument_text(61772).unwrap();
+        let instr_text = ModInfo::get(61772).unwrap().instrument_text;
         assert_eq!(
             instr_text,
             "7th  Dance
@@ -796,22 +520,23 @@ mod tests {
 
     #[test]
     fn invalid_modid() {
-        let invalid = get_full_details_as_string(30638);
-        assert_eq!(invalid.split(',').nth(1).unwrap(), "absent");
+        let invalid = ModInfo::get(30638);
+        assert!(invalid.is_err());
     }
 
     #[test]
     fn valid_modid() {
-        let valid = get_full_details_as_string(99356);
-        assert_eq!(valid.split(',').nth(1).unwrap(), "present");
+        let valid = ModInfo::get(99356);
+        assert!(valid.is_ok());
     }
 
     #[test]
     fn spotlit_modid() {
-        let module = get_full_details_as_string(158263);
-        assert_eq!(module.split(',').nth(7).unwrap(), "true");
+        let module = ModInfo::get(158263).unwrap();
+        assert_eq!(module.spotlit, true);
     }
 
+    /*
     #[test]
     fn invalid_modid_struct() {
         let invalid = get_full_details_as_struct(30638);
@@ -829,6 +554,7 @@ mod tests {
         let module = get_full_details_as_struct(158263);
         assert_eq!(module.mod_spotlit, true);
     }
+    */
 
     #[test]
     fn name_resolving() {

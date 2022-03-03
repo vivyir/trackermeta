@@ -1,7 +1,7 @@
-use trackermeta::scraper::{requests, resolver};
+use trackermeta::scraper::{resolver, ModInfo};
 
 fn main() {
     let modid = resolver::resolve_mod_filename("noway.s3m").unwrap();
-    let modtext = requests::get_instrument_text(modid).unwrap();
-    println!("{}", modtext);
+    let modtext = ModInfo::get(modid).unwrap();
+    println!("{}", modtext.instrument_text);
 }
