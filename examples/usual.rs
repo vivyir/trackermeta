@@ -10,12 +10,16 @@ fn main() {
             )
             .unwrap()[0]
                 .id;
-            println!("{}", ModInfo::get(mod_id).unwrap().instrument_text);
+            let mod_info = ModInfo::get(mod_id).unwrap();
+            println!("{}", &mod_info.instrument_text);
 
             println!("\n----------------------------------------\n");
 
-            let mod_info = ModInfo::get(mod_id).unwrap();
             println!("{:#?}", mod_info);
+
+            println!("\n----------------------------------------\n");
+
+            println!("Download link: {}", mod_info.get_download_link());
         }
         _ => println!("Usage: trackermeta get <filename>"),
     }

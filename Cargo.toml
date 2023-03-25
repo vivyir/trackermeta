@@ -1,6 +1,6 @@
 [package]
 name = "trackermeta"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["vivyir <ayitsmephoenix@airmail.cc>"]
 edition = "2021"
 description = "Simple library to get and parse modarchive module data"
@@ -18,7 +18,7 @@ infinity-retry = []
 
 [dependencies]
 ureq = "2.1"
-escaper = "0.1.1"
+escaper = "0.1"
 chrono = "0.4"
 cfg-if = "1.0"
-tl = "0.7.1"
+tl = "0.7"

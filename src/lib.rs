@@ -1,6 +1,6 @@
 //! This is a library crate for working with the [Modarchive](https://modarchive.org)
 //! website, it is very barebones and simple to work with, please check out the
-//! documentation for `ModInfo` and its methods for more info, do be sure to look
+//! documentation for [`ModInfo`] and its methods for more info, do be sure to look
 //! at the examples aswell!
 //!
 //! (This is the Reborn update, v0.5.x)
@@ -37,7 +37,7 @@ use chrono::prelude::{DateTime, Utc};
 
 // https://stackoverflow.com/a/64148190
 fn iso8601_time(st: &std::time::SystemTime) -> String {
-    let dt: DateTime<Utc> = st.clone().into();
+    let dt: DateTime<Utc> = (*st).into();
     format!("{}", dt.format("%+"))
 }
 
@@ -47,7 +47,7 @@ pub enum Error {
     NotFound,
 }
 
-/// Simply struct to represent a search result, id and filename will be provided in each
+/// Simple struct to represent a search result, id and filename will be provided in each
 #[derive(Debug)]
 pub struct ModSearch {
     pub id: u32,
@@ -134,7 +134,7 @@ cfg_if::cfg_if! {
 impl ModInfo {
     /// Probably the singular most important function in this crate, takes a mod id (can be
     /// generated at random, deliberately entered or acquired by resolving a filename and
-    /// picking a search result), and then gives you a full `ModInfo` struct.
+    /// picking a search result), and then gives you a full [`ModInfo`] struct.
     pub fn get(mod_id: u32) -> Result<ModInfo, crate::Error> {
         let body = inner_request(mod_id);
 
@@ -144,16 +144,11 @@ impl ModInfo {
         let id = mod_id;
         let scrape_time = iso8601_time(&std::time::SystemTime::now());
 
-        let valid = {
-            let mut iter = dom.get_elements_by_class_name("mod-page-archive-info");
+        let valid = dom.get_elements_by_class_name("mod-page-archive-info")
+                .next()
+                .is_some();
 
-            match iter.next() {
-                Some(_) => true,
-                None => false,
-            }
-        };
-
-        if valid == false {
+        if !valid {
             return Err(crate::Error::NotFound);
         }
 
@@ -164,8 +159,8 @@ impl ModInfo {
                 .get(parser)
                 .unwrap()
                 .inner_text(parser)
-                .replace("(", "")
-                .replace(")", "")
+                .replace('(', "")
+                .replace(')', "")
         };
 
         let title = {
@@ -212,14 +207,9 @@ impl ModInfo {
                 .replace("Format: ", "")
         };
 
-        let spotlit = {
-            let mut iter = dom.get_elements_by_class_name("mod-page-featured");
-
-            match iter.next() {
-                Some(_) => true,
-                None => false,
-            }
-        };
+        let spotlit = dom.get_elements_by_class_name("mod-page-featured")
+                .next()
+                .is_some();
 
         let download_count = {
             dom.query_selector("li.stats")
@@ -257,6 +247,8 @@ impl ModInfo {
                 .parse()
                 .unwrap()
         };
+
+        dom.query_selector("a.master");
 
         let genre = {
             dom.query_selector("li.stats")
@@ -315,8 +307,19 @@ impl ModInfo {
         })
     }
 
+    /// Returns a modarchive download link for the given module, you can get this struct by using
+    /// [`ModInfo::get()`], or search using [`ModInfo::resolve_filename()`], if you're using the
+    /// resolver function please consider using the [`ModSearch::get_download_link()`] method
+    /// instead.
+    pub fn get_download_link(&self) -> String {
+        format!(
+            "https://api.modarchive.org/downloads.php?moduleid={}#{}",
+            self.id, self.filename
+        )
+    }
+
     /// Searches for your string on Modarchive and returns the results on the first page (a.k.a
-    /// only up to the first 40) as a `Vec<ModSearch>`
+    /// only up to the first 40) as a vector of [`ModSearch`]
     pub fn resolve_filename(filename: &str) -> Result<Vec<ModSearch>, crate::Error> {
         let body: String = ureq::get(
                 format!(
@@ -349,16 +352,14 @@ impl ModInfo {
                 let node = nodehandle.get(parser).unwrap();
 
                 let id = match node.as_tag().unwrap().attributes().get("href") {
-                    Some(b) => match b {
-                        Some(a) => a
-                            .as_utf8_str()
-                            .split("query=")
-                            .nth(1)
-                            .unwrap()
-                            .parse()
-                            .unwrap(),
-                        None => unreachable!(),
-                    },
+                    Some(Some(a)) => a
+                        .as_utf8_str()
+                        .split("query=")
+                        .nth(1)
+                        .unwrap()
+                        .parse()
+                        .unwrap(),
+                    Some(None) => unreachable!(),
                     None => unreachable!(),
                 };
 
@@ -369,6 +370,16 @@ impl ModInfo {
             .collect();
 
         Ok(links)
+    }
+}
+
+impl ModSearch {
+    /// Get the download link of this specific module.
+    pub fn get_download_link(&self) -> String {
+        format!(
+            "https://api.modarchive.org/downloads.php?moduleid={}#{}",
+            self.id, self.filename
+        )
     }
 }
 
@@ -413,7 +424,21 @@ mod tests {
 
     #[test]
     fn name_resolving() {
-        let mod_id = ModInfo::resolve_filename("virtual-monotone.mod");
-        assert_eq!(mod_id.unwrap()[0].id, 88676);
+        let mod_search = ModInfo::resolve_filename("virtual-monotone.mod");
+        let mod_search = &mod_search.unwrap()[0];
+        assert_eq!(mod_search.id, 88676);
+        assert_eq!(
+            mod_search.get_download_link().as_str(),
+            "https://api.modarchive.org/downloads.php?moduleid=88676#virtual-monotone.mod"
+        );
+    }
+
+    #[test]
+    fn dl_link_modinfo() {
+        let modinfo = ModInfo::get(41070).unwrap();
+        assert_eq!(
+            modinfo.get_download_link().as_str(),
+            "https://api.modarchive.org/downloads.php?moduleid=41070#fading_horizont.mod"
+        );
     }
 }
