@@ -1,10 +1,7 @@
 # Trackermeta
 
-This is a simple library crate that helps with parsing
-data from the website called [Mod Archive](https://modarchive.org), it recently
-had a big reborn update (v0.5.0). It's now far more reliable, and parses the
-HTML very nicely, the code is readable and easier to use, the documentation is
-also superior, so if you've used this library in the past, please upgrade!
+This is a simple library crate that helps with parsing data from the website called [Mod Archive](https://modarchive.org), it recently had a big reborn update (v0.5.0).
+It's now far more reliable, and parses the HTML very nicely, the code is readable and easier to use, the documentation is also superior, so if you've used this library in the past, **please upgrade!**
 
 ## Examples
 

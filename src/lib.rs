@@ -5,7 +5,8 @@
 //!
 //! (This is the Reborn update, v0.5.x)
 //!
-//! ## Example: Get module info as a struct using a module id
+//! ## Example
+//! ### Get module info as a struct using a module id
 //! ```rust
 //! use trackermeta::ModInfo;
 //!
@@ -15,7 +16,8 @@
 //! }
 //! ```
 //!
-//! ## Example: Resolve filename to id then use id to get the info as struct
+//! ## Example
+//! ### Resolve filename to id then use id to get the info as struct
 //! ```rust
 //! use trackermeta::ModInfo;
 //!
@@ -31,7 +33,6 @@
 //!
 //! [Mod Archive]: https://modarchive.org
 #![allow(clippy::needless_doctest_main)]
-#![forbid(unsafe_code)]
 
 use chrono::prelude::{DateTime, Utc};
 
@@ -158,8 +159,7 @@ impl ModInfo {
                 .get(parser)
                 .unwrap()
                 .inner_text(parser)
-                .replace('(', "")
-                .replace(')', "")
+                .replace(['(', ')'], "")
         };
 
         let title = {
@@ -418,7 +418,7 @@ mod tests {
     #[test]
     fn spotlit_modid() {
         let module = ModInfo::get(158263).unwrap();
-        assert_eq!(module.spotlit, true);
+        assert!(module.spotlit);
     }
 
     #[test]
