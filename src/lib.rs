@@ -1,11 +1,12 @@
-//! This is a library crate for working with the [Modarchive](https://modarchive.org)
+//! This is a library crate for working with the [Mod Archive](https://modarchive.org)
 //! website, it is very barebones and simple to work with, please check out the
 //! documentation for [`ModInfo`] and its methods for more info, do be sure to look
 //! at the examples aswell!
 //!
 //! (This is the Reborn update, v0.5.x)
 //!
-//! ## Example: Get module info as a struct using a module id
+//! ## Example
+//! ### Get module info as a struct using a module id
 //! ```rust
 //! use trackermeta::ModInfo;
 //!
@@ -15,7 +16,8 @@
 //! }
 //! ```
 //!
-//! ## Example: Resolve filename to id then use id to get the info as struct
+//! ## Example
+//! ### Resolve filename to id then use id to get the info as struct
 //! ```rust
 //! use trackermeta::ModInfo;
 //!
@@ -29,9 +31,8 @@
 //! There are more examples other than these which showcase more, remember
 //! to check the `examples` directory!
 //!
-//! [Modarchive]: https://modarchive.org
+//! [Mod Archive]: https://modarchive.org
 #![allow(clippy::needless_doctest_main)]
-#![forbid(unsafe_code)]
 
 use chrono::prelude::{DateTime, Utc};
 
@@ -57,7 +58,7 @@ pub struct ModSearch {
 /// Struct containing all of the info about a module
 #[derive(Debug)]
 pub struct ModInfo {
-    /// The module ID of the module on modarchive
+    /// The module ID of the module on Mod Archive
     pub id: u32,
     /// The filename of the module
     pub filename: String,
@@ -76,8 +77,7 @@ pub struct ModInfo {
     pub spotlit: bool,
     /// Download count of the module at the time of scraping
     pub download_count: u32,
-    /// Times the module has been favourited at the time of
-    /// scraping
+    /// Times the module has been favourited at the time of scraping
     pub fav_count: u32,
     /// The time when it was scraped
     pub scrape_time: String,
@@ -132,7 +132,7 @@ cfg_if::cfg_if! {
 }
 
 impl ModInfo {
-    /// Probably the singular most important function in this crate, takes a mod id (can be
+    /// Probably the singular most important function in this crate, takes a module ID (can be
     /// generated at random, deliberately entered or acquired by resolving a filename and
     /// picking a search result), and then gives you a full [`ModInfo`] struct.
     pub fn get(mod_id: u32) -> Result<ModInfo, crate::Error> {
@@ -159,8 +159,7 @@ impl ModInfo {
                 .get(parser)
                 .unwrap()
                 .inner_text(parser)
-                .replace('(', "")
-                .replace(')', "")
+                .replace(['(', ')'], "")
         };
 
         let title = {
@@ -307,7 +306,7 @@ impl ModInfo {
         })
     }
 
-    /// Returns a modarchive download link for the given module, you can get this struct by using
+    /// Returns a Mod Archive download link for the given module, you can get this struct by using
     /// [`ModInfo::get()`], or search using [`ModInfo::resolve_filename()`], if you're using the
     /// resolver function please consider using the [`ModSearch::get_download_link()`] method
     /// instead.
@@ -318,7 +317,7 @@ impl ModInfo {
         )
     }
 
-    /// Searches for your string on Modarchive and returns the results on the first page (a.k.a
+    /// Searches for your string on Mod Archive and returns the results on the first page (a.k.a
     /// only up to the first 40) as a vector of [`ModSearch`]
     pub fn resolve_filename(filename: &str) -> Result<Vec<ModSearch>, crate::Error> {
         let body: String = ureq::get(
@@ -419,7 +418,7 @@ mod tests {
     #[test]
     fn spotlit_modid() {
         let module = ModInfo::get(158263).unwrap();
-        assert_eq!(module.spotlit, true);
+        assert!(module.spotlit);
     }
 
     #[test]

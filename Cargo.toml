@@ -3,7 +3,7 @@ name = "trackermeta"
 version = "0.5.1"
 authors = ["vivyir <ayitsmephoenix@airmail.cc>"]
 edition = "2021"
-description = "Simple library to get and parse modarchive module data"
+description = "Simple library to get and parse Mod Archive module data"
 readme = "README.md"
 repository = "https://github.com/vivyir/trackermeta"
 license = "MPL-2.0"
@@ -12,6 +12,9 @@ keywords = ["modarchive", "metadata", "tracker"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 doctest = false
+
+[lints.rust]
+unsafe_code = "forbid"
 
 [features]
 infinity-retry = []
